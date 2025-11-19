@@ -2,7 +2,6 @@
 import calendar
 import streamlit as st
 import pandas as pd
-import vis
 
 st.set_page_config(page_title="Coffee Shop Sales: Dashboard", layout='wide')
 
