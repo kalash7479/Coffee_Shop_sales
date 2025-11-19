@@ -1,215 +1,442 @@
-import plotly.express as px
+''' Visulization Functions '''
 import plotly.graph_objects as go
-import pandas as pd
 
-
-# -------------------------
-# BAR CHART
-# -------------------------
-def bar_chart(df, x_col, y_col):
-    df = df.copy()
-    df[x_col] = df[x_col].astype(str)
-
-    fig = px.bar(
-        df,
-        x=x_col,
-        y=y_col,
-        title=f"{y_col.replace('_', ' ').title()} by {x_col.replace('_', ' ').title()}",
-        template="plotly_white"
+def bar_chart(data, granularity, feature):
+    ''' Displays Sales Trends over Time '''
+    fig = go.Figure(
+        data=[
+            go.Bar(
+                x=data.index.start_time.astype(str),
+                y=data.values,
+                text=data.values,
+                textposition='auto'
+            )
+        ]
     )
-    fig.update_layout(xaxis_tickangle=-45)
+
+    if feature == 'total_amount':
+        yaxis_title = 'Total Sales Amount'
+    elif feature == 'transaction_id':
+        yaxis_title = 'Number of Transactions'
+    elif feature == 'transaction_qty':
+        yaxis_title = 'Total Quantity Sold'
+    else:
+        yaxis_title = 'Total Amount/Qty'
+
+    fig.update_layout(
+        title_text = f'{yaxis_title}: {granularity}',
+        xaxis_title = f'{granularity}',
+        yaxis_title = yaxis_title,
+        template = 'plotly_dark' ,
+        height = 700
+    )
+
     return fig
 
+def line_chart(data, granularity, feature):
+    ''' Displays Moving Average '''
+    if granularity == 'Daily':
+        window = 7
+        frequency = 'Days'
+    elif granularity == 'Weekly':
+        window = 4
+        frequency = 'Weeks'
+    elif granularity == 'Monthly':
+        window = 2
+        frequency = 'Months'
+    else:
+        window = 2
+        frequency = 'Months'
 
-# -------------------------
-# LINE CHART
-# -------------------------
-def line_chart(df, x_col, y_col):
-    df = df.copy()
-    df = df.sort_values(x_col)
-    df[x_col] = df[x_col].astype(str)
+    moving_average = data.rolling(window=window).mean()
 
-    fig = px.line(
-        df,
-        x=x_col,
-        y=y_col,
-        markers=True,
-        title=f"{y_col.replace('_', ' ').title()} Trend by {x_col.replace('_', ' ').title()}",
-        template="plotly_white"
+    if feature == 'total_amount':
+        yaxis_title = 'Total Sales Amount'
+    elif feature == 'transaction_id':
+        yaxis_title = 'Number of Transactions'
+    elif feature == 'transaction_qty':
+        yaxis_title = 'Total Quantity Sold'
+    else:
+        yaxis_title = 'Total Amount/Qty'
+
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Scatter(
+            x = data.index.start_time.astype(str),
+            y = data.values,
+            mode='lines',
+            name='Actual Data'
+        )
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x = moving_average.index.start_time.astype(str),
+            y = moving_average.values,
+            mode='lines',
+            name=f'{window}-{frequency} Moving Average'
+        )
+    )
+
+    fig.update_layout(
+        title_text = f'Growth of {yaxis_title} Over {window}-{frequency}',
+        xaxis_title = f'{granularity}',
+        yaxis_title = f'{yaxis_title}',
+        template = 'plotly_dark',
+        legend=dict(
+            orientation='h',
+            yanchor='bottom',
+            y=1.02,
+            xanchor='right',
+            x=1
+        ),
+        height = 350
+    )
+
+    return fig
+
+def growth_chart(data, granularity, feature):
+    ''' Displays Growth Rate by Granularity '''
+    growth = data.pct_change() * 100
+    growth = growth.round(2)
+
+    if granularity == 'Daily':
+        frequency = 'Day'
+    elif granularity == 'Weekly':
+        frequency = 'Week'
+    elif granularity == 'Monthly':
+        frequency = 'Month'
+    else:
+        frequency = 'Month'
+
+    fig = go.Figure(
+        data=[
+            go.Bar(
+                x=growth.index.start_time.astype(str),
+                y=growth.values,
+                text=growth.values,
+                textposition='auto'
+            )
+        ]
+    )
+
+    if feature == 'total_amount':
+        yaxis_title = 'Total Sales Amount'
+    elif feature == 'transaction_id':
+        yaxis_title = 'Number of Transactions'
+    elif feature == 'transaction_qty':
+        yaxis_title = 'Total Quantity Sold'
+    else:
+        yaxis_title = "Total Amount/Qty"
+
+    fig.update_layout(
+        title_text = f'Growth Rate of {yaxis_title} per {frequency}',
+        xaxis_title = f'{granularity}',
+        yaxis_title = f'{yaxis_title}',
+        height = 350
+    )
+
+    return fig
+
+def avg_sales_by_week(data, feature):
+    ''' Displays Average Sales by Week '''
+    if feature == 'Sales':
+        graph_title = 'Average Sales by Weekday',
+        graph_yaxis = 'Revenue ($)'
+    elif feature == 'Transactions':
+        graph_title = 'Average Number of Transaction by Weekday',
+        graph_yaxis = 'No. of Transactions'
+    else:
+        graph_title = 'Average Sales/Transactions by Weekday',
+        graph_yaxis = 'Transactions/Revenue'
+
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Bar(
+            x=data.index,
+            y=data.values
+        )
+    )
+
+    fig.update_layout(
+        title=str(graph_title[0]),
+        xaxis_title='Weekday',
+        yaxis_title=graph_yaxis,
+        height=700
+    )
+
+    return fig
+
+def avg_sales_by_hourofday(data, feature):
+    ''' Displays Averages Sales by Hour of the Day '''
+    if feature == 'Sales':
+        graph_title = 'Average Sales by Hour of Day'
+        graph_yaxis = 'Average Sales'
+    elif feature == 'Transactions':
+        graph_title = 'Average Transactions by Hour of Day'
+        graph_yaxis = 'Number of Transactions'
+    else:
+        graph_title = 'Average Sales/Transactions'
+        graph_yaxis = 'Transactions/Revenue'
+
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Scatter(
+            x=data.index,
+            y=data.values,
+            mode='lines+markers',
+            fill = 'tozeroy',
+            fillcolor='rgba(0, 176, 246, 0.2)'
+        )
+    )
+
+    fig.update_layout(
+        title=str(graph_title),
+        xaxis_title='Hour of Day',
+        yaxis_title=graph_yaxis,
+        height=300
+    )
+
+    return fig
+
+def avg_sales_by_hourofday_product(data, feature):
+    ''' Displays Average Sales by Hour of the Day (Product-wise) '''
+    fig = go.Figure()
+
+    if feature == 'Sales':
+        graph_title = 'Average Sales by Hour of Day (Product Category)'
+        graph_yaxis = 'Revenue ($)'
+        for category in data['product_category'].unique():
+            cat_df = data[data['product_category'] == category]
+            hourly_sales = cat_df.groupby(
+                [cat_df['transaction_date'].dt.date, 'transaction_hour']
+            )['total_amount'].sum().reset_index()
+            average_hourly_sales = hourly_sales.groupby('transaction_hour')['total_amount'].mean()
+            fig.add_trace(
+                go.Scatter(
+                    x=average_hourly_sales.index,
+                    y=average_hourly_sales.values,
+                    mode='lines',
+                    name=category
+                )
+            )
+
+    elif feature == 'Transactions':
+        graph_title = 'Average Number of Transactions by Hour of Day (Product Category)'
+        graph_yaxis = 'Number of Transactions'
+        for category in data['product_category'].unique():
+            cat_df = data[data['product_category'] == category]
+            hourly_transactions = cat_df.groupby(
+                [cat_df['transaction_date'].dt.date, 'transaction_hour']
+            ).size().reset_index(name='total_transactions')
+            average_hourly_transactions = hourly_transactions.groupby(
+                'transaction_hour'
+            )['total_transactions'].mean()
+            fig.add_trace(
+                go.Scatter(
+                    x=average_hourly_transactions.index,
+                    y=average_hourly_transactions.values,
+                    mode='lines',
+                    name=category
+                )
+            )
+    else:
+        graph_title = 'Average Sales/Transactions by Hour of Day'
+        graph_yaxis = 'Sales/Transactions'
+
+    fig.update_layout(
+        title=graph_title,
+        xaxis_title='Hour of Day',
+        yaxis_title=graph_yaxis,
+        showlegend=True,
+        height=400
     )
     return fig
 
-
-# -------------------------
-# SALES BY DAY (Daily Trend)
-# -------------------------
-def daily_sales_trend(df, date_col, sales_col):
-    df = df.copy()
-    df[date_col] = pd.to_datetime(df[date_col])
-
-    daily = df.groupby(date_col)[sales_col].sum().reset_index()
-
-    fig = px.line(
-        daily,
-        x=date_col,
-        y=sales_col,
-        title="Daily Sales Trend",
-        markers=True,
-        template="plotly_white"
+def top_selling_product(data):
+    ''' Displays Top Selling Product '''
+    fig = go.Figure()
+    fig.add_trace(
+        go.Bar(
+            x=data.index.astype(str),
+            y=data.values
+        )
+    )
+    fig.update_layout(
+        title='Product Category Distribution',
+        xaxis_title='Product Category',
+        yaxis_title='Total Sales',
+        height=800
     )
     return fig
 
-
-# -------------------------
-# MONTHLY SALES TREND
-# -------------------------
-def monthly_sales(df, date_col, sales_col):
-    df = df.copy()
-    df[date_col] = pd.to_datetime(df[date_col])
-    df["Month"] = df[date_col].dt.to_period("M").astype(str)
-
-    monthly = df.groupby("Month")[sales_col].sum().reset_index()
-
-    fig = px.line(
-        monthly,
-        x="Month",
-        y=sales_col,
-        title="Monthly Sales Trend",
-        markers=True,
-        template="plotly_white"
+def category_breakdown(data, category):
+    ''' Displays Product Category Breakdown '''
+    fig = go.Figure()
+    fig.add_trace(
+        go.Pie(
+            values=data[category].values,
+            labels=data[category].index.astype(str).tolist(),
+            textinfo='percent+label',
+            hole=0.3
+        )
     )
+
+    fig.update_layout(
+        title="Product Type Sales Distribution",
+        legend=dict(
+        orientation="h",
+        yanchor="bottom",
+        y=-0.4,
+        xanchor="center",
+        x=0.5
+        ),
+        height=400
+    )
+
     return fig
 
+def store_sales_trend(store1_sale, store2_sale, store3_sale, feature):
+    ''' Displays Store Sales Trend '''
+    if feature == 'Sales':
+        graph_title = 'Store Sales Comparsion (Revenue)'
+        graph_yaxis = 'Total Sales'
+    elif feature == 'Transactions':
+        graph_title = 'Store Sales Comparsion (Transactions)'
+        graph_yaxis = 'Total Transactions'
+    else:
+        graph_title = 'Store Sales Comparsion'
+        graph_yaxis = 'Total Sales/Transactions'
 
-# -------------------------
-# AVERAGE SALES BY HOUR OF DAY
-# -------------------------
-def avg_sales_by_hour(df, time_col, sales_col):
-    df = df.copy()
-    df[time_col] = pd.to_datetime(df[time_col])
-    df["Hour"] = df[time_col].dt.hour
+    fig = go.Figure()
 
-    hourly = df.groupby("Hour")[sales_col].mean().reset_index()
-
-    fig = px.line(
-        hourly,
-        x="Hour",
-        y=sales_col,
-        markers=True,
-        title="Average Sales by Hour of Day",
-        template="plotly_white"
+    fig.add_trace(
+        go.Scatter(
+            x=store1_sale.index.start_time.astype(str),
+            y=store1_sale.values,
+            mode='lines',
+            name='Lower Manhattan'
+        )
     )
+
+    fig.add_trace(
+        go.Scatter(
+            x=store2_sale.index.start_time.astype(str),
+            y=store2_sale.values,
+            mode='lines',
+            name="Hell's Kitchen"
+        )
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=store3_sale.index.start_time.astype(str),
+            y=store3_sale.values,
+            mode='lines',
+            name='Astoria'
+        )
+    )
+
+    fig.update_layout(
+        title=graph_title,
+        xaxis_title='Week',
+        yaxis_title=graph_yaxis,
+        legend=dict(
+            x=0.5,
+            y=1.1,
+            orientation='h',
+            xanchor='center'
+        ),
+        height=475
+    )
+
     return fig
 
+def store_sale_distribution(sale_data, label, feature):
+    ''' Displays Store Sales Distribution '''
+    if feature == 'Sales':
+        graph_title = 'Store Sales Distribution (Revenue)'
+    elif feature == 'Transactions':
+        graph_title = 'Store Sales Distribution (Transactions)'
+    else:
+        graph_title = 'Store Sales Distribution'
 
-# -------------------------
-# TOP N PRODUCTS SOLD
-# -------------------------
-def top_selling_products(df, product_col, qty_col, n=10):
-    df = df.copy()
-    top = df.groupby(product_col)[qty_col].sum().nlargest(n).reset_index()
+    fig = go.Figure()
 
-    fig = px.bar(
-        top,
-        x=product_col,
-        y=qty_col,
-        title=f"Top {n} Best Selling Products",
-        template="plotly_white"
+    fig.add_trace(
+        go.Pie(
+            labels=label,
+            values=sale_data,
+            hole=0.3,
+            textinfo='percent+label'
+        )
     )
-    fig.update_layout(xaxis_tickangle=-45)
+
+    fig.update_layout(
+        title=graph_title,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=-0.2,
+            xanchor="center",
+            x=0.5
+        ),
+        height=475
+    )
+
     return fig
 
+def growth_rate(store1_growth, store2_growth, store3_growth, feature):
+    ''' Displays Grown Rate of 3 Stores '''
+    if feature == 'Sales':
+        graph_title = 'Weekly Growth Rates by Store Location (Revenue)'
+    elif feature == 'Transactions':
+        graph_title = 'Weekly Growth Rates by Store Location (Number of Transactions)'
+    else:
+        graph_title = 'Weekly Growth Rates by Store Location'
 
-# -------------------------
-# CATEGORY SALES BREAKDOWN
-# -------------------------
-def category_breakdown(df, category_col, sales_col):
-    category = df.groupby(category_col)[sales_col].sum().reset_index()
+    fig = go.Figure()
 
-    fig = px.pie(
-        category,
-        names=category_col,
-        values=sales_col,
-        title="Sales Breakdown by Category"
+    fig.add_trace(
+        go.Bar(
+            x=store1_growth.index.start_time.astype(str),
+            y=store1_growth.values,
+            name="Lower Manhattan"
+        )
     )
-    return fig
 
-
-# -------------------------
-# SALES BY STORE LOCATION
-# -------------------------
-def store_sales(df, store_col, sales_col):
-    store = df.groupby(store_col)[sales_col].sum().reset_index()
-
-    fig = px.bar(
-        store,
-        x=store_col,
-        y=sales_col,
-        title="Sales by Store Location",
-        template="plotly_white"
+    fig.add_trace(
+        go.Bar(
+            x=store2_growth.index.start_time.astype(str),
+            y=store2_growth.values,
+            name="Hell's Kitchen"
+        )
     )
-    fig.update_layout(xaxis_tickangle=-45)
-    return fig
 
-
-# -------------------------
-# CUSTOMER COUNT BY DAY
-# -------------------------
-def customers_per_day(df, date_col, customer_col):
-    df = df.copy()
-    df[date_col] = pd.to_datetime(df[date_col])
-
-    cust = df.groupby(date_col)[customer_col].sum().reset_index()
-
-    fig = px.line(
-        cust,
-        x=date_col,
-        y=customer_col,
-        title="Customer Count by Day",
-        markers=True,
-        template="plotly_white"
+    fig.add_trace(
+        go.Bar(
+            x=store3_growth.index.start_time.astype(str),
+            y=store3_growth.values,
+            name="Astoria"
+        )
     )
-    return fig
 
-
-# -------------------------
-# WEEKLY SALES TREND
-# -------------------------
-def weekly_sales(df, date_col, sales_col):
-    df = df.copy()
-    df[date_col] = pd.to_datetime(df[date_col])
-    df["Week"] = df[date_col].dt.to_period("W").astype(str)
-
-    week = df.groupby("Week")[sales_col].sum().reset_index()
-
-    fig = px.line(
-        week,
-        x="Week",
-        y=sales_col,
-        markers=True,
-        title="Weekly Sales Trend",
-        template="plotly_white"
+    fig.update_layout(
+        title=graph_title,
+        xaxis_title="Week",
+        yaxis_title="Growth Rate (%)",
+        barmode="group",
+        legend=dict(
+            title="Store Location",
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="center",
+            x=0.5
+        )
     )
-    return fig
 
-
-# -------------------------
-# GROWTH RATE CALCULATION
-# -------------------------
-def growth_rate(df, date_col, sales_col):
-    df = df.copy()
-    df[date_col] = pd.to_datetime(df[date_col])
-    df["Month"] = df[date_col].dt.to_period("M").astype(str)
-
-    monthly = df.groupby("Month")[sales_col].sum().reset_index()
-    monthly["Growth %"] = monthly[sales_col].pct_change() * 100
-
-    fig = px.line(
-        monthly,
-        x="Month",
-        y="Growth %",
-        markers=True,
-        title="Monthly Growth Rate (%)",
-        template="plotly_white"
-    )
     return fig
